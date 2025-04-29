@@ -28,6 +28,8 @@ This repository contains a ServiceNow integration server for the Model Context P
 - ServiceNow instance with appropriate API access
 - Valid ServiceNow credentials
 - Optional: Gemini API key for AI capabilities
+- UV icorn for running the server
+- FastAPI for building the server
 
 ## ⚙️ Configuration
 
@@ -57,7 +59,7 @@ This repository contains a ServiceNow integration server for the Model Context P
 ### Running the Server
 
 ```bash
-python servicenow.py
+mcp install <file_name>.py
 ```
 
 ### Example Usage
