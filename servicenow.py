@@ -333,26 +333,83 @@ async def create_sla_definition(
         return f"Error creating SLA Definition: {e}"
 
 
+# @mcp.tool()
+# async def create_record_producer(
+#     name: str,
+#     table_name: str,  # The target table for the record produced
+#     short_description: str | None = None,
+#     category_sys_id: (
+#         str | None
+#     ) = None,  # Optional: sys_id of the Service Catalog category
+#     script: str | None = None,  # Optional: Server-side script for the producer
+# ) -> str:
+#     """Creates a new Record Producer in ServiceNow's Service Catalog.
+#     Args:
+#         name: The name of the Record Producer (how it appears in the catalog).
+#         table_name: The name of the table where the record will be created (e.g., 'incident').
+#         short_description: A short description displayed in the catalog (optional).
+#         category_sys_id: The sys_id of the Service Catalog Category (optional).
+#         script: Server-side script to run when the producer is submitted (optional).
+#     Returns:
+#         A confirmation message with the name of the created Record Producer.
+#     """
+#     endpoint = "api/now/table/sc_cat_item_producer"
+#     payload = {
+#         "name": name,
+#         "table_name": table_name,
+#         "short_description": short_description or name,
+#         "active": "true",
+#         "sys_class_name": "sc_cat_item_producer",  # Important for record producers
+#     }
+#     if category_sys_id:
+#         payload["category"] = category_sys_id
+#     if script:
+#         payload["script"] = script
+
+#     try:
+#         result = await _make_servicenow_request(endpoint, payload)
+#         producer_name = result.get("name", name)
+#         sys_id = result.get("sys_id", "UNKNOWN")
+#         return f"Successfully created Record Producer '{producer_name}' (Sys ID: {sys_id}). Variables need to be added via ServiceNow UI."
+#     except ValueError as e:
+#         return f"Error creating Record Producer: {e}"
+
 @mcp.tool()
 async def create_record_producer(
     name: str,
     table_name: str,  # The target table for the record produced
     short_description: str | None = None,
-    category_sys_id: (
-        str | None
-    ) = None,  # Optional: sys_id of the Service Catalog category
+    category_sys_id: str | None = None,  # Optional: sys_id of the Service Catalog category
     script: str | None = None,  # Optional: Server-side script for the producer
+    variables: list[dict] | None = None,  # Optional: List of variable definitions
+    variable_set_ids: list[str] | None = None,  # Optional: List of variable set sys_ids to include
 ) -> str:
-    """Creates a new Record Producer in ServiceNow's Service Catalog.
+    """Creates a new Record Producer in ServiceNow's Service Catalog with support for variables.
+    
     Args:
         name: The name of the Record Producer (how it appears in the catalog).
         table_name: The name of the table where the record will be created (e.g., 'incident').
         short_description: A short description displayed in the catalog (optional).
         category_sys_id: The sys_id of the Service Catalog Category (optional).
         script: Server-side script to run when the producer is submitted (optional).
+        variables: List of dictionaries defining variables to add to the Record Producer (optional).
+                  Each dictionary should contain variable details such as:
+                  {
+                      "name": "variable_name",
+                      "label": "User-friendly Label",
+                      "type": "string|boolean|integer|etc",
+                      "mandatory": True/False,
+                      "default_value": "optional default",
+                      "reference_table": "table_name",  # For reference variables
+                      "help_text": "Tooltip text",
+                      "description": "Longer description"
+                  }
+        variable_set_ids: List of sys_ids of variable sets to include (optional).
+        
     Returns:
-        A confirmation message with the name of the created Record Producer.
+        A confirmation message with the name of the created Record Producer and added variables.
     """
+    # First create the Record Producer
     endpoint = "api/now/table/sc_cat_item_producer"
     payload = {
         "name": name,
@@ -367,13 +424,201 @@ async def create_record_producer(
         payload["script"] = script
 
     try:
+        # Create the Record Producer first
         result = await _make_servicenow_request(endpoint, payload)
         producer_name = result.get("name", name)
-        sys_id = result.get("sys_id", "UNKNOWN")
-        return f"Successfully created Record Producer '{producer_name}' (Sys ID: {sys_id}). Variables need to be added via ServiceNow UI."
+        producer_sys_id = result.get("sys_id", "")
+        
+        if not producer_sys_id:
+            return "Error creating Record Producer: No sys_id returned from ServiceNow."
+        
+        # Add variable sets if provided
+        variable_set_messages = []
+        if variable_set_ids and len(variable_set_ids) > 0:
+            for set_id in variable_set_ids:
+                try:
+                    # Create catalog item variable set relationship
+                    set_endpoint = "api/now/table/io_set_item"
+                    set_payload = {
+                        "sc_cat_item": producer_sys_id,
+                        "variable_set": set_id,
+                    }
+                    
+                    set_result = await _make_servicenow_request(set_endpoint, set_payload)
+                    if set_result.get("sys_id"):
+                        variable_set_messages.append(f"Added variable set (ID: {set_id})")
+                    else:
+                        variable_set_messages.append(f"Failed to add variable set (ID: {set_id})")
+                except ValueError as e:
+                    variable_set_messages.append(f"Error adding variable set (ID: {set_id}): {e}")
+        
+        # Add individual variables if provided
+        variable_messages = []
+        if variables and len(variables) > 0:
+            for idx, var_def in enumerate(variables):
+                try:
+                    # Map variable type to ServiceNow's internal variable type
+                    var_type_map = {
+                        "string": "2",
+                        "integer": "9",
+                        "boolean": "6",
+                        "reference": "8",
+                        "choice": "3",
+                        "text": "1",
+                        "date": "5",
+                        "datetime": "4",
+                        "currency": "10",
+                        "price": "7"
+                    }
+                    
+                    # Create catalog item variable
+                    var_endpoint = "api/now/table/item_option_new"
+                    var_payload = {
+                        "cat_item": producer_sys_id,
+                        "name": var_def.get("name", f"variable_{idx}"),
+                        "question_text": var_def.get("label", var_def.get("name", f"Variable {idx}")),
+                        "type": var_type_map.get(var_def.get("type", "string").lower(), "2"),  # Default to string
+                        "mandatory": str(var_def.get("mandatory", False)).lower(),
+                        "order": (idx + 1) * 100,  # Incrementing order for proper display
+                        "help_text": var_def.get("help_text", ""),
+                        "description": var_def.get("description", ""),
+                    }
+                    
+                    # Add default value if provided
+                    if "default_value" in var_def:
+                        var_payload["default_value"] = str(var_def["default_value"])
+                    
+                    # Add reference table for reference variables
+                    if var_def.get("type", "").lower() == "reference" and "reference_table" in var_def:
+                        var_payload["reference"] = var_def["reference_table"]
+                    
+                    var_result = await _make_servicenow_request(var_endpoint, var_payload)
+                    if var_result.get("sys_id"):
+                        variable_messages.append(f"Added variable '{var_def.get('name', f'variable_{idx}')}'")
+                    else:
+                        variable_messages.append(f"Failed to add variable '{var_def.get('name', f'variable_{idx}')}'")
+                except ValueError as e:
+                    variable_messages.append(f"Error adding variable '{var_def.get('name', f'variable_{idx}')}': {e}")
+        
+        # Construct final result message
+        message = f"Successfully created Record Producer '{producer_name}' (Sys ID: {producer_sys_id})."
+        
+        if variable_set_messages:
+            message += f"\nVariable Sets: {'; '.join(variable_set_messages)}"
+            
+        if variable_messages:
+            message += f"\nVariables: {'; '.join(variable_messages)}"
+        elif not variable_set_messages and not variables:
+            message += " No variables were added."
+            
+        return message
     except ValueError as e:
         return f"Error creating Record Producer: {e}"
 
+
+@mcp.tool()
+async def create_variable_set(
+    name: str,
+    description: str | None = None,
+    variables: list[dict] | None = None,  # Optional: List of variable definitions
+) -> str:
+    """Creates a new Variable Set in ServiceNow to be reused across catalog items.
+    
+    Args:
+        name: The name of the Variable Set.
+        description: A description of the Variable Set (optional).
+        variables: List of dictionaries defining variables to add to the set (optional).
+                  Each dictionary should contain variable details such as:
+                  {
+                      "name": "variable_name",
+                      "label": "User-friendly Label",
+                      "type": "string|boolean|integer|etc",
+                      "mandatory": True/False,
+                      "default_value": "optional default",
+                      "reference_table": "table_name",  # For reference variables
+                      "help_text": "Tooltip text", 
+                      "description": "Longer description"
+                  }
+        
+    Returns:
+        A confirmation message with the sys_id of the created Variable Set.
+    """
+    # First create the Variable Set
+    endpoint = "api/now/table/io_set"
+    payload = {
+        "name": name,
+        "description": description or name,
+        "active": "true",
+    }
+
+    try:
+        # Create the Variable Set first
+        result = await _make_servicenow_request(endpoint, payload)
+        set_name = result.get("name", name)
+        set_sys_id = result.get("sys_id", "")
+        
+        if not set_sys_id:
+            return "Error creating Variable Set: No sys_id returned from ServiceNow."
+        
+        # Add variables if provided
+        variable_messages = []
+        if variables and len(variables) > 0:
+            for idx, var_def in enumerate(variables):
+                try:
+                    # Map variable type to ServiceNow's internal variable type
+                    var_type_map = {
+                        "string": "2",
+                        "integer": "9",
+                        "boolean": "6",
+                        "reference": "8",
+                        "choice": "3",
+                        "text": "1",
+                        "date": "5",
+                        "datetime": "4",
+                        "currency": "10",
+                        "price": "7"
+                    }
+                    
+                    # Create variable in the set
+                    var_endpoint = "api/now/table/io_set_variable"
+                    var_payload = {
+                        "variable_set": set_sys_id,
+                        "name": var_def.get("name", f"variable_{idx}"),
+                        "question_text": var_def.get("label", var_def.get("name", f"Variable {idx}")),
+                        "type": var_type_map.get(var_def.get("type", "string").lower(), "2"),  # Default to string
+                        "mandatory": str(var_def.get("mandatory", False)).lower(),
+                        "order": (idx + 1) * 100,  # Incrementing order for proper display
+                        "help_text": var_def.get("help_text", ""),
+                        "description": var_def.get("description", ""),
+                    }
+                    
+                    # Add default value if provided
+                    if "default_value" in var_def:
+                        var_payload["default_value"] = str(var_def["default_value"])
+                    
+                    # Add reference table for reference variables
+                    if var_def.get("type", "").lower() == "reference" and "reference_table" in var_def:
+                        var_payload["reference"] = var_def["reference_table"]
+                    
+                    var_result = await _make_servicenow_request(var_endpoint, var_payload)
+                    if var_result.get("sys_id"):
+                        variable_messages.append(f"Added variable '{var_def.get('name', f'variable_{idx}')}'")
+                    else:
+                        variable_messages.append(f"Failed to add variable '{var_def.get('name', f'variable_{idx}')}'")
+                except ValueError as e:
+                    variable_messages.append(f"Error adding variable '{var_def.get('name', f'variable_{idx}')}': {e}")
+        
+        # Construct final result message
+        message = f"Successfully created Variable Set '{set_name}' (Sys ID: {set_sys_id})."
+        
+        if variable_messages:
+            message += f"\nVariables: {'; '.join(variable_messages)}"
+        else:
+            message += " No variables were added."
+            
+        return message
+    except ValueError as e:
+        return f"Error creating Variable Set: {e}"
 
 # --- Run the Server ---
 if __name__ == "__main__":
