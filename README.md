@@ -213,7 +213,7 @@ For support, please:
 ## 👤 Author
 
 <div align="center">
-  <img src="https://github.com/divyashah0510.png" alt="Divya Shah" width="200" style="border-radius:50%;"/>
+  <img src="https://github.com/divyashah0510.png" alt="Divya Shah" width="100"/>
   <p><strong>Divya Shah</strong></p>
   <p>
    AI Engineer | ServiceNow Developer | Open Source Contributor
@@ -226,6 +226,9 @@ For support, please:
 </div>
 
 ---
+## 🎥 Watch Live Demo
+🔗 [Youtube Link](https://www.youtube.com/watch?v=FojEOrdFWxo)
+
 
 <div align="center">
   <p>Made with ❤️ by Divya Shah</p>
