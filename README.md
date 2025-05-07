@@ -130,6 +130,7 @@ create_record_producer(
 ```
 
 Key features:
+
 - Customizable form fields with various types (string, integer, boolean, reference, etc.)
 - Server-side scripting support
 - Category assignment
@@ -164,6 +165,7 @@ create_variable_set(
 ```
 
 Variable sets support:
+
 - Multiple variable types (string, integer, boolean, reference, choice, etc.)
 - Custom validation rules
 - Help text and descriptions
@@ -206,6 +208,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 For support, please:
+
 - Open an issue in this repository
 - Contact the maintainers
 - Check the [ServiceNow documentation](https://docs.servicenow.com)
@@ -226,6 +229,10 @@ For support, please:
 </div>
 
 ---
+
+## Live Demo
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/FojEOrdFWxo?si=WQZoNOwEe_ktaiJ_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 <div align="center">
   <p>Made with ❤️ by Divya Shah</p>
