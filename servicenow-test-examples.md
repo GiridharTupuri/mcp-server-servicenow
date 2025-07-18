@@ -105,13 +105,85 @@ create_record_producer name="Building Access Request" table_name="sc_request" sh
 Test creating variable sets for different use cases:
 
 ```
-create_variable_set name="Hardware Request Variables" description="Common variables for hardware requests" variables=[{"name":"device_type","label":"Device Type","type":"choice","choices":["Laptop","Desktop","Tablet","Phone"],"mandatory":true},{"name":"justification","label":"Justification","type":"text","mandatory":true,"help_text":"Please explain why you need this hardware"}]
+create_variable_set name="Hardware Request Variables" description="Common variables for hardware requests" variables=[
+  {
+    "name": "device_type",
+    "label": "Device Type",
+    "type": "choice",
+    "choices": ["Laptop", "Desktop", "Tablet", "Phone"],
+    "mandatory": true
+  },
+  {
+    "name": "justification",
+    "label": "Justification",
+    "type": "text",
+    "mandatory": true,
+    "help_text": "Please explain why you need this hardware"
+  }
+]
 ```
 
 ```
-create_variable_set name="Employee Onboarding Variables" description="Variables for new employee onboarding" variables=[{"name":"start_date","label":"Start Date","type":"date","mandatory":true},{"name":"department","label":"Department","type":"reference","reference_table":"cmn_department","mandatory":true},{"name":"equipment_needed","label":"Required Equipment","type":"boolean","default_value":true}]
+create_variable_set name="Employee Onboarding Variables" description="Variables for new employee onboarding" variables=[
+  {
+    "name": "start_date",
+    "label": "Start Date",
+    "type": "date",
+    "mandatory": true
+  },
+  {
+    "name": "department",
+    "label": "Department",
+    "type": "reference",
+    "reference_table": "cmn_department",
+    "mandatory": true
+  },
+  {
+    "name": "equipment_needed",
+    "label": "Required Equipment",
+    "type": "boolean",
+    "default_value": true
+  }
+]
 ```
 
 ```
-create_variable_set name="IT Support Variables" description="Common variables for IT support requests" variables=[{"name":"issue_category","label":"Issue Category","type":"choice","choices":["Hardware","Software","Network","Access"],"mandatory":true},{"name":"urgency","label":"Urgency Level","type":"choice","choices":["Low","Medium","High","Critical"],"mandatory":true},{"name":"description","label":"Issue Description","type":"text","mandatory":true,"help_text":"Please provide detailed description of the issue"}]
+create_variable_set name="IT Support Variables" description="Common variables for IT support requests" variables=[
+  {
+    "name": "issue_category",
+    "label": "Issue Category",
+    "type": "choice",
+    "choices": ["Hardware", "Software", "Network", "Access"],
+    "mandatory": true
+  },
+  {
+    "name": "urgency",
+    "label": "Urgency Level",
+    "type": "choice",
+    "choices": ["Low", "Medium", "High", "Critical"],
+    "mandatory": true
+  },
+  {
+    "name": "description",
+    "label": "Issue Description",
+    "type": "text",
+    "mandatory": true,
+    "help_text": "Please provide detailed description of the issue"
+  },
+  {
+    "name": "affected_location",
+    "label": "Affected Location",
+    "type": "reference",
+    "reference_table": "cmn_location",
+    "mandatory": false
+  },
+  {
+    "name": "business_impact",
+    "label": "Business Impact",
+    "type": "select_box",
+    "choices": ["No Impact", "Low Impact", "Medium Impact", "High Impact", "Critical Impact"],
+    "mandatory": false,
+    "help_text": "Select the level of business impact this issue is causing"
+  }
+]
 ```
