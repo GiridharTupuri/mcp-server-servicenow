@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "servicenow": {
+      "command": "python",
+      "args": ["/path/to/servicenow.py"],
+      "env": {
+        "SERVICENOW_INSTANCE": "https://your-instance.service-now.com",
+        "SERVICENOW_USERNAME": "your_username",
+        "SERVICENOW_PASSWORD": "your_password",
+        "GEMINI_API_KEY": "your_api_key_optional"
+      }
+    }
+  }
+}

@@ -38,21 +38,14 @@ async def _make_servicenow_request(
 
     async with httpx.AsyncClient(auth=auth, headers=headers, timeout=30.0) as client:
         try:
-            print(
-                f"Making {method} request to {api_url} with payload: {json.dumps(payload)}"
-            )  # Debug print
             if method == "POST":
                 response = await client.post(api_url, json=payload)
-            # Add other methods like GET, PUT, DELETE if needed
-            # elif method == "GET":
-            #     response = await client.get(api_url)
+            elif method == "GET":
+                response = await client.get(api_url, params=payload)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
             response.raise_for_status()  # Raise exception for 4xx/5xx errors
-            print(
-                f"ServiceNow API Response Status: {response.status_code}"
-            )  # Debug print
             # Handle potential empty responses for certain successful actions
             if response.status_code == 204:  # No Content
                 return {
@@ -71,7 +64,6 @@ async def _make_servicenow_request(
 
         except httpx.HTTPStatusError as e:
             error_details = f"HTTP Error: {e.response.status_code} - {e.response.text}"
-            print(error_details)  # Log the error
             # Attempt to parse ServiceNow specific error message if available
             try:
                 sn_error = e.response.json().get("error", {})
@@ -83,21 +75,29 @@ async def _make_servicenow_request(
                 raise ValueError(error_details) from e
             except Exception as inner_e:
                 # Catch potential issues parsing the error itself
-                print(f"Error parsing ServiceNow error response: {inner_e}")
                 raise ValueError(
                     error_details
                 ) from e  # Raise the original HTTP error details
         except httpx.RequestError as e:
             error_details = f"Request Error: {e}"
-            print(error_details)
             raise ValueError(f"Could not connect to ServiceNow: {error_details}") from e
         except Exception as e:
             # Catch-all for other unexpected errors during the request
             error_details = (
                 f"Unexpected error during ServiceNow request: {type(e).__name__} - {e}"
             )
-            print(error_details)
             raise ValueError(error_details) from e
+
+
+# --- ServiceNow GET Helper ---
+async def sn_get(table: str, limit: int = 5) -> dict:
+    """Helper function to retrieve records from ServiceNow tables."""
+    endpoint = f"api/now/table/{table}"
+    params = {
+        "sysparm_limit": limit,
+        "sysparm_display_value": "true"
+    }
+    return await _make_servicenow_request(endpoint, params, method="GET")
 
 
 # --- MCP Tool Definitions ---
@@ -619,6 +619,102 @@ async def create_variable_set(
         return message
     except ValueError as e:
         return f"Error creating Variable Set: {e}"
+
+
+@mcp.tool()
+async def get_incidents(limit: int = 5) -> str:
+    """Retrieve recent incidents from ServiceNow.
+    Args:
+        limit: Number of incidents to retrieve (default 5, max 100).
+    Returns:
+        A formatted string with incident details.
+    """
+    try:
+        if limit > 100:
+            limit = 100
+        result = await sn_get("incident", limit=limit)
+        
+        if not result or "result" not in result:
+            return "No incidents found or error retrieving incidents."
+        
+        incidents = result["result"]
+        if not incidents:
+            return "No incidents found."
+        
+        formatted_incidents = []
+        for incident in incidents:
+            formatted_incidents.append(
+                f"• {incident.get('number', 'N/A')}: {incident.get('short_description', 'No description')} "
+                f"(State: {incident.get('state', 'N/A')}, Priority: {incident.get('priority', 'N/A')})"
+            )
+        
+        return f"Retrieved {len(incidents)} incidents:\n" + "\n".join(formatted_incidents)
+    except ValueError as e:
+        return f"Error retrieving incidents: {e}"
+
+
+@mcp.tool()
+async def get_change_requests(limit: int = 5) -> str:
+    """Retrieve recent change requests from ServiceNow.
+    Args:
+        limit: Number of change requests to retrieve (default 5, max 100).
+    Returns:
+        A formatted string with change request details.
+    """
+    try:
+        if limit > 100:
+            limit = 100
+        result = await sn_get("change_request", limit=limit)
+        
+        if not result or "result" not in result:
+            return "No change requests found or error retrieving change requests."
+        
+        changes = result["result"]
+        if not changes:
+            return "No change requests found."
+        
+        formatted_changes = []
+        for change in changes:
+            formatted_changes.append(
+                f"• {change.get('number', 'N/A')}: {change.get('short_description', 'No description')} "
+                f"(State: {change.get('state', 'N/A')}, Risk: {change.get('risk', 'N/A')})"
+            )
+        
+        return f"Retrieved {len(changes)} change requests:\n" + "\n".join(formatted_changes)
+    except ValueError as e:
+        return f"Error retrieving change requests: {e}"
+
+
+@mcp.tool()
+async def get_users(limit: int = 5) -> str:
+    """Retrieve ServiceNow users (sys_user table).
+    Args:
+        limit: Number of users to retrieve (default 5, max 100).
+    Returns:
+        A formatted string with user details.
+    """
+    try:
+        if limit > 100:
+            limit = 100
+        result = await sn_get("sys_user", limit=limit)
+        
+        if not result or "result" not in result:
+            return "No users found or error retrieving users."
+        
+        users = result["result"]
+        if not users:
+            return "No users found."
+        
+        formatted_users = []
+        for user in users:
+            formatted_users.append(
+                f"• {user.get('user_name', 'N/A')}: {user.get('name', 'No name')} "
+                f"(Email: {user.get('email', 'N/A')}, Active: {user.get('active', 'N/A')})"
+            )
+        
+        return f"Retrieved {len(users)} users:\n" + "\n".join(formatted_users)
+    except ValueError as e:
+        return f"Error retrieving users: {e}"
 
 # --- Run the Server ---
 if __name__ == "__main__":
