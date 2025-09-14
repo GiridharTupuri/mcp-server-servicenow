@@ -21,7 +21,7 @@ if not all([SN_INSTANCE, SN_USERNAME, SN_PASSWORD]):
 
 # --- Initialize FastMCP Server ---
 # Give the server a name that will appear in the client UI
-mcp = FastMCP()
+mcp = FastMCP("servicenow-mcp")
 
 
 # --- ServiceNow API Helper ---
@@ -622,8 +622,6 @@ async def create_variable_set(
 
 # --- Run the Server ---
 if __name__ == "__main__":
-    # # This allows running the server directly using `python server.py`
-    # # The `mcp` command-line tool can also run this file.
-    # # Transport defaults to 'stdio' when run directly like this.
-    # mcp.run()
-    mcp.tool()
+    # The `mcp` command-line tool can also run this file.
+    # Transport defaults to 'stdio' when run directly like this.
+    mcp.run()
