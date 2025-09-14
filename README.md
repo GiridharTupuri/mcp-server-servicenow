@@ -56,6 +56,15 @@ This repository contains a ServiceNow integration server for the Model Context P
 
 ## 🚀 Getting Started
 
+### Claude Desktop Configuration
+
+For easy setup with Claude Desktop, use the provided `claude_config.json` file:
+
+1. Copy `claude_config.json` to your Claude Desktop configuration directory
+2. Update the environment variables with your ServiceNow credentials
+3. Update the path to point to your local `servicenow.py` file
+4. Restart Claude Desktop
+
 ### Running the Server
 
 ```bash
@@ -99,6 +108,9 @@ The server provides the following tools:
 - `create_sla_definition`: Create SLA definitions
 - `create_record_producer`: Create record producers with customizable variables
 - `create_variable_set`: Create reusable variable sets for catalog items
+- `get_incidents`: Retrieve recent incidents from ServiceNow
+- `get_change_requests`: Retrieve recent change requests from ServiceNow
+- `get_users`: Retrieve ServiceNow users from sys_user table
 
 ### Record Producer Details
 
