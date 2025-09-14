@@ -38,9 +38,6 @@ async def _make_servicenow_request(
 
     async with httpx.AsyncClient(auth=auth, headers=headers, timeout=30.0) as client:
         try:
-            print(
-                f"Making {method} request to {api_url} with payload: {json.dumps(payload)}"
-            )  # Debug print
             if method == "POST":
                 response = await client.post(api_url, json=payload)
             elif method == "GET":
@@ -49,9 +46,6 @@ async def _make_servicenow_request(
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
             response.raise_for_status()  # Raise exception for 4xx/5xx errors
-            print(
-                f"ServiceNow API Response Status: {response.status_code}"
-            )  # Debug print
             # Handle potential empty responses for certain successful actions
             if response.status_code == 204:  # No Content
                 return {
@@ -70,7 +64,6 @@ async def _make_servicenow_request(
 
         except httpx.HTTPStatusError as e:
             error_details = f"HTTP Error: {e.response.status_code} - {e.response.text}"
-            print(error_details)  # Log the error
             # Attempt to parse ServiceNow specific error message if available
             try:
                 sn_error = e.response.json().get("error", {})
@@ -82,20 +75,17 @@ async def _make_servicenow_request(
                 raise ValueError(error_details) from e
             except Exception as inner_e:
                 # Catch potential issues parsing the error itself
-                print(f"Error parsing ServiceNow error response: {inner_e}")
                 raise ValueError(
                     error_details
                 ) from e  # Raise the original HTTP error details
         except httpx.RequestError as e:
             error_details = f"Request Error: {e}"
-            print(error_details)
             raise ValueError(f"Could not connect to ServiceNow: {error_details}") from e
         except Exception as e:
             # Catch-all for other unexpected errors during the request
             error_details = (
                 f"Unexpected error during ServiceNow request: {type(e).__name__} - {e}"
             )
-            print(error_details)
             raise ValueError(error_details) from e
 
 
